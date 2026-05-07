@@ -18,6 +18,7 @@ import net.osmand.plus.R;
 import net.osmand.plus.routing.RouteService;
 import net.osmand.plus.routing.RoutingHelper;
 import net.osmand.plus.routing.RoutingHelperUtils;
+import net.osmand.plus.settings.backend.storages.VariableWaypointsStorage;
 import net.osmand.plus.settings.backend.ApplicationMode;
 import net.osmand.plus.settings.backend.OsmAndAppCustomization.OsmAndAppCustomizationListener;
 import net.osmand.plus.settings.backend.OsmandSettings;
@@ -152,10 +153,76 @@ public class TargetPointsHelper {
 		
 	}
 
+	public static class VariableTargetPoint {
+		private String displayName;
+		private String poiQuery;
+		private int position;
+		private LatLon resolvedLocation;
+		private String resolvedName;
+
+		public VariableTargetPoint(String displayName, String poiQuery, int position) {
+			this.displayName = displayName;
+			this.poiQuery = poiQuery;
+			this.position = position;
+		}
+
+		public String getDisplayName() {
+			return displayName;
+		}
+
+		public void setDisplayName(String displayName) {
+			this.displayName = displayName;
+		}
+
+		public String getPoiQuery() {
+			return poiQuery;
+		}
+
+		public void setPoiQuery(String poiQuery) {
+			this.poiQuery = poiQuery;
+		}
+
+		public int getPosition() {
+			return position;
+		}
+
+		public void setPosition(int position) {
+			this.position = position;
+		}
+
+		public LatLon getResolvedLocation() {
+			return resolvedLocation;
+		}
+
+		public void setResolvedLocation(LatLon resolvedLocation) {
+			this.resolvedLocation = resolvedLocation;
+		}
+
+		public String getResolvedName() {
+			return resolvedName;
+		}
+
+		public void setResolvedName(String resolvedName) {
+			this.resolvedName = resolvedName;
+		}
+
+		public boolean isResolved() {
+			return resolvedLocation != null;
+		}
+
+		public void clearResolved() {
+			resolvedLocation = null;
+			resolvedName = null;
+		}
+	}
+
+	private final VariableWaypointsStorage variableWaypointsStorage;
+
 	public TargetPointsHelper(@NonNull OsmandApplication ctx){
 		this.ctx = ctx;
 		this.settings = ctx.getSettings();
 		this.routingHelper = ctx.getRoutingHelper();
+		this.variableWaypointsStorage = new VariableWaypointsStorage(settings);
 		readFromSettings();
 
 		OsmAndAppCustomizationListener customizationListener = () -> {
@@ -759,5 +826,49 @@ public class TargetPointsHelper {
 		for (TargetPointChangedListener l : pointListeners) {
 			l.onTargetPointChanged(targetPoint);
 		}
+	}
+
+	public List<VariableTargetPoint> getVariableWaypoints() {
+		return variableWaypointsStorage.getVariableWaypoints();
+	}
+
+	public void addVariableWaypoint(String displayName, String poiQuery, boolean updateRoute) {
+		List<VariableTargetPoint> points = getVariableWaypoints();
+		VariableTargetPoint vp = new VariableTargetPoint(displayName, poiQuery, points.size());
+		points.add(vp);
+		variableWaypointsStorage.saveVariableWaypoints(points);
+		updateRouteAndRefresh(updateRoute);
+	}
+
+	public void removeVariableWaypoint(int index, boolean updateRoute) {
+		variableWaypointsStorage.deleteVariableWaypoint(index);
+		updateRouteAndRefresh(updateRoute);
+	}
+
+	public void clearVariableWaypoints(boolean updateRoute) {
+		variableWaypointsStorage.clearVariableWaypoints();
+		updateRouteAndRefresh(updateRoute);
+	}
+
+	public boolean hasVariableWaypoints() {
+		return !variableWaypointsStorage.getVariableWaypoints().isEmpty();
+	}
+
+	public void updateVariableWaypointResolved(int index, LatLon resolvedLocation, String resolvedName) {
+		List<VariableTargetPoint> points = getVariableWaypoints();
+		if (index >= 0 && index < points.size()) {
+			VariableTargetPoint vp = points.get(index);
+			vp.setResolvedLocation(resolvedLocation);
+			vp.setResolvedName(resolvedName);
+			variableWaypointsStorage.saveVariableWaypoints(points);
+		}
+	}
+
+	public void clearAllVariableWaypointsResolved() {
+		List<VariableTargetPoint> points = getVariableWaypoints();
+		for (VariableTargetPoint vp : points) {
+			vp.clearResolved();
+		}
+		variableWaypointsStorage.saveVariableWaypoints(points);
 	}
 }

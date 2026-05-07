@@ -60,6 +60,9 @@ public class RoutingHelper {
 	private final VoiceRouter voiceRouter;
 	private final RouteRecalculationHelper routeRecalculationHelper;
 	private final TransportRoutingHelper transportRoutingHelper;
+	private final VariableWaypointResolver variableWaypointResolver;
+
+	private List<LatLon> resolvedVariableWaypoints;
 
 	private boolean isFollowingMode;
 	private boolean isRoutePlanningMode;
@@ -99,6 +102,7 @@ public class RoutingHelper {
 		routeRecalculationHelper = new RouteRecalculationHelper(this);
 		transportRoutingHelper = context.getTransportRoutingHelper();
 		transportRoutingHelper.setRoutingHelper(this);
+		variableWaypointResolver = new VariableWaypointResolver(app);
 		setAppMode(settings.APPLICATION_MODE.get());
 
 		OsmAndAppCustomizationListener customizationListener = () -> settings = app.getSettings();
@@ -840,9 +844,57 @@ public class RoutingHelper {
 				transportRoutingHelper.recalculateRouteDueToSettingsChange();
 			}
 		} else {
+			List<LatLon> allIntermediates = resolveAndMergeVariableWaypoints();
 			routeRecalculationHelper.recalculateRouteInBackground(lastFixedLocation, finalLocation,
-					intermediatePoints, currentGPXRoute, route, true, false);
+					allIntermediates, currentGPXRoute, route, true, false);
 		}
+	}
+
+	private List<LatLon> resolveAndMergeVariableWaypoints() {
+		List<LatLon> allIntermediates = new ArrayList<>();
+		if (intermediatePoints != null) {
+			allIntermediates.addAll(intermediatePoints);
+		}
+
+		List<net.osmand.plus.helpers.TargetPointsHelper.VariableTargetPoint> variableWaypoints =
+				app.getTargetPointsHelper().getVariableWaypoints();
+		if (variableWaypoints.isEmpty()) {
+			resolvedVariableWaypoints = null;
+			return allIntermediates;
+		}
+
+		resolvedVariableWaypoints = new ArrayList<>();
+		LatLon start = lastFixedLocation != null ?
+				new LatLon(lastFixedLocation.getLatitude(), lastFixedLocation.getLongitude()) :
+				(settings.getPointToStart() != null ? settings.getPointToStart() : null);
+		LatLon end = finalLocation;
+
+		if (start == null || end == null) {
+			return allIntermediates;
+		}
+
+		for (int i = 0; i < variableWaypoints.size(); i++) {
+			net.osmand.plus.helpers.TargetPointsHelper.VariableTargetPoint vp = variableWaypoints.get(i);
+			VariableWaypointResolver.ResolutionResult result = variableWaypointResolver.resolveVariableWaypoint(
+					vp, start, end, allIntermediates);
+
+			if (result != null) {
+				allIntermediates.add(vp.getPosition(), result.resolvedLocation);
+				resolvedVariableWaypoints.add(result.resolvedLocation);
+				app.getTargetPointsHelper().updateVariableWaypointResolved(i, result.resolvedLocation, result.resolvedName);
+			}
+		}
+
+		return allIntermediates;
+	}
+
+	public List<LatLon> getResolvedVariableWaypoints() {
+		return resolvedVariableWaypoints;
+	}
+
+	public void clearResolvedVariableWaypoints() {
+		resolvedVariableWaypoints = null;
+		app.getTargetPointsHelper().clearAllVariableWaypointsResolved();
 	}
 
 	public void startRouteCalculationThread(RouteCalculationParams params) {

@@ -2581,6 +2581,13 @@ You need to activate the sensor so OsmAnd can find it.</string>
     <string name="shared_string_height">Height</string>
     <string name="add_destination_point">Set destination</string>
     <string name="add_intermediate_point">Add intermediate</string>
+    <string name="add_variable_waypoint">Smart stop along route</string>
+    <string name="add_variable_waypoint_descr">Add a stop, and we\'ll find the best location</string>
+    <string name="variable_waypoint_query_hint">e.g. Taco Bell, gas station, pharmacy</string>
+    <string name="variable_waypoint_title">Smart Stop</string>
+    <string name="variable_waypoint_resolve_failed">Could not find “%1$s“ along this route</string>
+    <string name="variable_waypoint_resolved_as">Resolved: %1$s</string>
+    <string name="convert_to_regular_stop">Convert to regular stop</string>
     <string name="add_start_point">Set starting point</string>
     <string name="intermediate_waypoint">Intermediate point</string>
     <string name="transfers">Transfers</string>

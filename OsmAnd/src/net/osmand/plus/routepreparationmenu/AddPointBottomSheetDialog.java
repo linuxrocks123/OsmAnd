@@ -137,6 +137,7 @@ public class AddPointBottomSheetDialog extends MenuBottomSheetDialogFragment {
 				createSwitchStartAndEndItem();
 				break;
 			case INTERMEDIATE:
+				createSmartStopItem();
 				createSelectOnTheMapItem();
 				createFavoritesScrollItem();
 				createMarkersScrollItem();
@@ -281,6 +282,24 @@ public class AddPointBottomSheetDialog extends MenuBottomSheetDialogFragment {
 					}
 				}).create();
 		items.add(myLocationItem);
+	}
+
+	private void createSmartStopItem() {
+		BaseBottomSheetItem smartStopItem = new SimpleBottomSheetItem.Builder()
+				.setIcon(getContentIcon(R.drawable.ic_action_search_dark))
+				.setTitle(getString(R.string.add_variable_waypoint))
+				.setLayoutId(R.layout.bottom_sheet_item_with_descr_56dp)
+				.setOnClickListener(new OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						MapActivity mapActivity = (MapActivity) getActivity();
+						if (mapActivity != null) {
+							VariableWaypointDialogFragment.showInstance(mapActivity);
+						}
+						dismiss();
+					}
+				}).create();
+		items.add(smartStopItem);
 	}
 
 	private void createSelectOnTheMapItem() {
