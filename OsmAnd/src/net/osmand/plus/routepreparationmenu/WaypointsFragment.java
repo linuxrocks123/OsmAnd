@@ -451,9 +451,6 @@ public class WaypointsFragment extends BaseOsmAndFragment implements ObservableS
 				if (obj instanceof LocationPointWrapper) {
 					LocationPointWrapper point = (LocationPointWrapper) obj;
 					v = updateWaypointItemView(edit, deletedPoints, ctx, v, point, this, nightMode, flat, position);
-				} else if (obj instanceof WaypointDialogHelper.VariableWaypointWrapper) {
-					WaypointDialogHelper.VariableWaypointWrapper vw = (WaypointDialogHelper.VariableWaypointWrapper) obj;
-					v = updateVariableWaypointItemView(ctx, v, vw, nightMode, edit);
 				}
 				return v;
 			}
@@ -808,82 +805,6 @@ public class WaypointsFragment extends BaseOsmAndFragment implements ObservableS
 		if (descText != null) {
 			descText.setText(pointDescription);
 		}
-	}
-
-	private View updateVariableWaypointItemView(MapActivity mapActivity, View v,
-	                                            WaypointDialogHelper.VariableWaypointWrapper vw,
-	                                            boolean nightMode, boolean edit) {
-		OsmandApplication app = mapActivity.getMyApplication();
-		if (v == null || v.findViewById(R.id.info_close) == null) {
-			v = UiUtilities.getInflater(mapActivity, nightMode).inflate(R.layout.route_waypoint_item, null);
-		}
-		v.setBackgroundColor(ColorUtilities.getCardAndListBackgroundColor(mapActivity, nightMode));
-
-		TextView text = v.findViewById(R.id.waypoint_text);
-		text.setTextColor(ColorUtilities.getPrimaryTextColor(mapActivity, nightMode));
-		text.setText(vw.getDisplayName());
-
-		TextView textShadow = v.findViewById(R.id.waypoint_text_shadow);
-		textShadow.setText(app.getString(R.string.variable_waypoint_title) + ": " + vw.getVariableTargetPoint().getPoiQuery());
-
-		TextView textDist = v.findViewById(R.id.waypoint_dist);
-		if (vw.isResolved() && vw.getLocation() != null) {
-			LocationPointWrapper dummyWrapper = new LocationPointWrapper(WaypointHelper.TARGETS,
-					TargetPointsHelper.TargetPoint.create(vw.getLocation(),
-							new PointDescription(PointDescription.POINT_TYPE_TARGET, vw.getDisplayName())),
-					0f, 0);
-			int dist = app.getWaypointHelper().getRouteDistance(dummyWrapper);
-			if (dist > 0) {
-				textDist.setText(OsmAndFormatter.getFormattedDistance(dist, app));
-			} else {
-				textDist.setText("");
-			}
-		} else {
-			textDist.setText("");
-		}
-
-		ImageView icon = v.findViewById(R.id.waypoint_icon);
-		icon.setImageDrawable(app.getUIUtilities().getIcon(R.drawable.ic_action_search_dark,
-				nightMode ? R.color.icon_color_default_dark : R.color.icon_color_default_light));
-
-		TextView descText = v.findViewById(R.id.waypoint_desc_text);
-		if (descText != null) {
-			descText.setTextColor(ContextCompat.getColor(app, R.color.text_color_secondary_light));
-			if (vw.isResolved()) {
-				descText.setText(app.getString(R.string.variable_waypoint_resolved_as, vw.getDisplayName()));
-			} else {
-				descText.setText(R.string.waiting_for_route_calculation);
-			}
-		}
-
-		ImageButton remove = v.findViewById(R.id.info_close);
-		if (edit) {
-			remove.setVisibility(View.VISIBLE);
-			remove.setImageDrawable(app.getUIUtilities().getThemedIcon(R.drawable.ic_action_remove_dark));
-			remove.setOnClickListener(view -> {
-				TargetPointsHelper targetsHelper = app.getTargetPointsHelper();
-				List<net.osmand.plus.helpers.TargetPointsHelper.VariableTargetPoint> vps = targetsHelper.getVariableWaypoints();
-				for (int i = 0; i < vps.size(); i++) {
-					if (vps.get(i) == vw.getVariableTargetPoint()) {
-						targetsHelper.removeVariableWaypoint(i, true);
-						reloadAdapter();
-						break;
-					}
-				}
-			});
-		} else {
-			remove.setVisibility(View.GONE);
-		}
-
-		ImageView move = v.findViewById(R.id.info_move);
-		if (move != null) move.setVisibility(View.GONE);
-
-		View topDivider = v.findViewById(R.id.top_divider);
-		if (topDivider != null) {
-			AndroidUtils.setBackground(mapActivity, topDivider, ColorUtilities.getDividerColorId(nightMode));
-		}
-
-		return v;
 	}
 
 	private static PointDescription getPointDescription(Context ctx, TargetPoint point) {

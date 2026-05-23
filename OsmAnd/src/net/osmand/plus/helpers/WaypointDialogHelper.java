@@ -24,7 +24,6 @@ import net.osmand.plus.utils.OsmAndFormatter;
 import net.osmand.plus.OsmandApplication;
 import net.osmand.plus.R;
 import net.osmand.plus.helpers.TargetPointsHelper.TargetPoint;
-import net.osmand.plus.helpers.TargetPointsHelper.VariableTargetPoint;
 import net.osmand.plus.activities.MapActivity;
 import net.osmand.plus.base.MenuBottomSheetDialogFragment;
 import net.osmand.plus.base.bottomsheetmenu.BaseBottomSheetItem;
@@ -217,12 +216,6 @@ public class WaypointDialogHelper {
 				}
 			}
 		}
-
-		List<VariableTargetPoint> variableWaypoints = app.getTargetPointsHelper().getVariableWaypoints();
-		for (VariableTargetPoint vp : variableWaypoints) {
-			points.add(new VariableWaypointWrapper(vp));
-		}
-
 		return points;
 	}
 
@@ -590,33 +583,6 @@ public class WaypointDialogHelper {
 				return (MapActivity) activity;
 			}
 			return null;
-		}
-	}
-
-	public static class VariableWaypointWrapper {
-		private final VariableTargetPoint variableTargetPoint;
-
-		public VariableWaypointWrapper(VariableTargetPoint variableTargetPoint) {
-			this.variableTargetPoint = variableTargetPoint;
-		}
-
-		public VariableTargetPoint getVariableTargetPoint() {
-			return variableTargetPoint;
-		}
-
-		public String getDisplayName() {
-			if (variableTargetPoint.isResolved() && variableTargetPoint.getResolvedName() != null) {
-				return variableTargetPoint.getResolvedName();
-			}
-			return variableTargetPoint.getPoiQuery();
-		}
-
-		public LatLon getLocation() {
-			return variableTargetPoint.getResolvedLocation();
-		}
-
-		public boolean isResolved() {
-			return variableTargetPoint.isResolved();
 		}
 	}
 }

@@ -18,7 +18,6 @@ import net.osmand.plus.R;
 import net.osmand.plus.activities.MapActivity;
 import net.osmand.plus.base.BaseOsmAndDialogFragment;
 import net.osmand.plus.helpers.TargetPointsHelper;
-import net.osmand.plus.helpers.TargetPointsHelper.VariableTargetPoint;
 import net.osmand.plus.routing.VariableWaypointResolver;
 import net.osmand.plus.routing.VariableWaypointResolver.ResolutionResult;
 import net.osmand.plus.settings.backend.ApplicationMode;
@@ -66,9 +65,6 @@ public class VariableWaypointDialogFragment extends BaseOsmAndDialogFragment {
 
 		new Thread(() -> {
 			try {
-				VariableTargetPoint vp = new VariableTargetPoint(query, query,
-						targetPointsHelper.getVariableWaypoints().size());
-
 				LatLon start = app.getRoutingHelper().getLastFixedLocation() != null ?
 						new LatLon(app.getRoutingHelper().getLastFixedLocation().getLatitude(),
 								app.getRoutingHelper().getLastFixedLocation().getLongitude()) :
@@ -84,14 +80,10 @@ public class VariableWaypointDialogFragment extends BaseOsmAndDialogFragment {
 				}
 
 				VariableWaypointResolver resolver = new VariableWaypointResolver(app);
-				ResolutionResult result = resolver.resolveVariableWaypoint(vp, start, end,
+				ResolutionResult result = resolver.resolveVariableWaypoint(query, start, end,
 						targetPointsHelper.getIntermediatePointsLatLon());
 
 				if (result != null) {
-					vp.setResolvedLocation(result.resolvedLocation);
-					vp.setResolvedName(result.resolvedName);
-					targetPointsHelper.addVariableWaypoint(query, query, true);
-					int index = targetPointsHelper.getVariableWaypoints().size() - 1;
 					//targetPointsHelper.updateVariableWaypointResolved(index, result.resolvedLocation, result.resolvedName);
                                         targetPointsHelper.navigateToPoint(result.resolvedLocation,true,targetPointsHelper.getIntermediatePoints().size());
 

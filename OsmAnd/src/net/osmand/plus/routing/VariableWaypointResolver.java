@@ -14,7 +14,6 @@ import net.osmand.data.QuadRect;
 import net.osmand.osm.AbstractPoiType;
 import net.osmand.osm.MapPoiTypes;
 import net.osmand.plus.OsmandApplication;
-import net.osmand.plus.helpers.TargetPointsHelper.VariableTargetPoint;
 import net.osmand.plus.myplaces.favorites.FavouritesHelper;
 import net.osmand.plus.search.QuickSearchHelper;
 import net.osmand.plus.settings.backend.ApplicationMode;
@@ -61,11 +60,10 @@ public class VariableWaypointResolver {
 	}
 
 	@Nullable
-	public ResolutionResult resolveVariableWaypoint(@NonNull VariableTargetPoint variableWaypoint,
+	public ResolutionResult resolveVariableWaypoint(@NonNull String query,
 	                                                @NonNull LatLon startPoint,
 	                                                @NonNull LatLon endPoint,
 	                                                @NonNull List<LatLon> currentIntermediates) {
-		String query = variableWaypoint.getPoiQuery();
 		if (query == null || query.trim().isEmpty()) {
 			return null;
 		}
