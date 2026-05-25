@@ -1,12 +1,11 @@
 package net.osmand.plus.routing;
 
-import static net.osmand.binary.BinaryMapIndexReader.ACCEPT_ALL_POI_TYPE_FILTER;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import net.osmand.Location;
 import net.osmand.PlatformUtil;
+import net.osmand.ResultMatcher;
 import net.osmand.data.Amenity;
 import net.osmand.data.FavouritePoint;
 import net.osmand.data.LatLon;
@@ -104,137 +103,28 @@ public class VariableWaypointResolver {
 		double latSpan = searchRadius / 111000.0;
 		double lonSpan = searchRadius / (111000.0 * Math.cos(Math.toRadians(centerLat)));
 
-		QuadRect bbox = new QuadRect(
-				centerLon - lonSpan, centerLat + latSpan,
-				centerLon + lonSpan, centerLat - latSpan
-		);
+                QuadRect bbox = new QuadRect(
+                                centerLon - lonSpan, centerLat + latSpan,
+                                centerLon + lonSpan, centerLat - latSpan
+                );
 
-		List<Amenity> amenities = app.getResourceManager().searchAmenities(ACCEPT_ALL_POI_TYPE_FILTER, bbox, true);
-		for (Amenity amenity : amenities) {
-			if (matchesQuery(amenity, query)) {
-				LatLon poiLocation = amenity.getLocation();
-				if (isNearRoute(poiLocation, startPoint, endPoint, currentIntermediates)) {
-					candidates.add(new CandidatePOI(amenity, poiLocation));
-				}
-			}
-			if (candidates.size() >= MAX_CANDIDATES * 2) {
-				break;
-			}
-		}
+                log.info("Getting amenities...");
+                List<Amenity> amenities = app.getResourceManager().searchAmenitiesByName(query, bbox.top, bbox.left, bbox.bottom, bbox.right, centerLat, centerLon, null);
+                log.info("Found "+amenities.size()+" matching amenities in bounding box.");
+
+		for (Amenity amenity : amenities)
+                        candidates.add(new CandidatePOI(amenity, amenity.getLocation()));
 
 		searchFavoriteCandidates(query, startPoint, endPoint, currentIntermediates, candidates);
-
-		QuickSearchHelper searchHelper = app.getSearchUICore();
-		if (searchHelper != null && candidates.size() < MAX_CANDIDATES) {
-			Amenity amenity = searchHelper.findAmenity(query, centerLat, centerLon, null, false);
-			if (amenity != null) {
-				LatLon poiLocation = amenity.getLocation();
-				if (isNearRoute(poiLocation, startPoint, endPoint, currentIntermediates)) {
-					boolean alreadyAdded = false;
-					for (CandidatePOI c : candidates) {
-						if (MapUtils.getDistance(c.location, poiLocation) < 10) {
-							alreadyAdded = true;
-							break;
-						}
-					}
-					if (!alreadyAdded) {
-						candidates.add(new CandidatePOI(amenity, poiLocation));
-					}
-				}
-			}
-		}
 
 		if (candidates.isEmpty()) {
 			candidates.addAll(searchPOIsOnline(query, centerLat, centerLon, startPoint, endPoint, currentIntermediates));
 		}
 
-		if (candidates.isEmpty()) {
-			candidates = findCandidatesByDistance(query, startPoint, endPoint, currentIntermediates);
-		}
-
+                log.info("Found "+candidates.size()+" candidates.");
 		calculateDetourTimes(candidates, startPoint, endPoint, currentIntermediates);
+                log.info("Finished calculating detour times.");
 
-		if (candidates.size() > MAX_CANDIDATES) {
-			return candidates.subList(0, MAX_CANDIDATES);
-		}
-		return candidates;
-	}
-
-	private List<CandidatePOI> findCandidatesByDistance(String query, LatLon startPoint, LatLon endPoint,
-	                                                    List<LatLon> currentIntermediates) {
-		List<CandidatePOI> candidates = new ArrayList<>();
-
-		List<LatLon> routePoints = new ArrayList<>();
-		routePoints.add(startPoint);
-		routePoints.addAll(currentIntermediates);
-		routePoints.add(endPoint);
-
-		for (int i = 0; i < routePoints.size() - 1; i++) {
-			LatLon segStart = routePoints.get(i);
-			LatLon segEnd = routePoints.get(i + 1);
-			double segDist = MapUtils.getDistance(segStart, segEnd);
-			int numSamples = (int) Math.max(3, segDist / 2000.0);
-
-			for (int s = 0; s <= numSamples; s++) {
-				double t = (double) s / numSamples;
-				LatLon samplePoint = new LatLon(
-						segStart.getLatitude() + t * (segEnd.getLatitude() - segStart.getLatitude()),
-						segStart.getLongitude() + t * (segEnd.getLongitude() - segStart.getLongitude())
-				);
-
-				double sampleSearchRadius = Math.max(SEARCH_RADIUS_METERS, segDist * 0.3);
-				double latSpan = sampleSearchRadius / 111000.0;
-				double lonSpan = sampleSearchRadius / (111000.0 * Math.cos(Math.toRadians(samplePoint.getLatitude())));
-
-				QuadRect bbox = new QuadRect(
-						samplePoint.getLongitude() - lonSpan, samplePoint.getLatitude() + latSpan,
-						samplePoint.getLongitude() + lonSpan, samplePoint.getLatitude() - latSpan
-				);
-
-				List<Amenity> amenities = app.getResourceManager().searchAmenities(ACCEPT_ALL_POI_TYPE_FILTER, bbox, true);
-				for (Amenity amenity : amenities) {
-					if (matchesQuery(amenity, query)) {
-						LatLon poiLocation = amenity.getLocation();
-						boolean alreadyAdded = false;
-						for (CandidatePOI c : candidates) {
-							if (MapUtils.getDistance(c.location, poiLocation) < 50) {
-								alreadyAdded = true;
-								break;
-							}
-						}
-						if (!alreadyAdded) {
-							candidates.add(new CandidatePOI(amenity, poiLocation));
-						}
-					}
-				}
-
-				FavouritesHelper favouritesHelper = app.getFavoritesHelper();
-				if (favouritesHelper != null) {
-					for (FavouritePoint fp : favouritesHelper.getFavouritePoints()) {
-						if (!fp.isVisible()) continue;
-						if (matchesFavouriteQuery(fp, query)) {
-							LatLon favLocation = new LatLon(fp.getLatitude(), fp.getLongitude());
-							boolean alreadyAdded = false;
-							for (CandidatePOI c : candidates) {
-								if (MapUtils.getDistance(c.location, favLocation) < 50) {
-									alreadyAdded = true;
-									break;
-								}
-							}
-							if (!alreadyAdded) {
-								candidates.add(new CandidatePOI(fp, favLocation));
-							}
-						}
-					}
-				}
-				if (candidates.size() >= MAX_CANDIDATES * 2) {
-					break;
-				}
-			}
-			if (candidates.size() >= MAX_CANDIDATES * 2) {
-				break;
-			}
-		}
 		return candidates;
 	}
 
@@ -260,9 +150,6 @@ public class VariableWaypointResolver {
 						candidates.add(new CandidatePOI(fp, favLocation));
 					}
 				}
-			}
-			if (candidates.size() >= MAX_CANDIDATES * 2) {
-				break;
 			}
 		}
 	}
@@ -330,26 +217,6 @@ public class VariableWaypointResolver {
 		return amenity;
 	}
 
-	private boolean matchesQuery(Amenity amenity, String query) {
-		String name = amenity.getName();
-		if (name != null && !name.isEmpty() && name.toLowerCase().contains(query.toLowerCase())) {
-			return true;
-		}
-		String subType = amenity.getSubType();
-		if (subType != null && subType.toLowerCase().contains(query.toLowerCase())) {
-			return true;
-		}
-		MapPoiTypes poiTypes = app.getPoiTypes();
-		if (poiTypes != null && subType != null) {
-			AbstractPoiType type = poiTypes.getAnyPoiTypeByKey(subType);
-			if (type != null && type.getTranslation() != null &&
-					type.getTranslation().toLowerCase().contains(query.toLowerCase())) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	private boolean isNearRoute(LatLon poi, LatLon start, LatLon end, List<LatLon> intermediates) {
 		List<LatLon> routePoints = new ArrayList<>();
 		routePoints.add(start);
@@ -390,19 +257,11 @@ public class VariableWaypointResolver {
 		double baseTime = estimateRouteTime(start, end, currentIntermediates);
 
 		for (CandidatePOI candidate : candidates) {
-			double bestInsertionTime = Double.MAX_VALUE;
-
-			for (int i = 0; i <= currentIntermediates.size(); i++) {
-				List<LatLon> withInsertion = new ArrayList<>(currentIntermediates);
-				withInsertion.add(i, candidate.location);
-
-				double timeWithInsertion = estimateRouteTime(start, end, withInsertion);
-				if (timeWithInsertion < bestInsertionTime) {
-					bestInsertionTime = timeWithInsertion;
-				}
-			}
-
-			candidate.detourTimeSeconds = bestInsertionTime - baseTime;
+                        List<LatLon> withInsertion = new ArrayList<>(currentIntermediates);
+                        withInsertion.add(candidate.location);
+                        
+                        double timeWithInsertion = estimateRouteTime(start, end, withInsertion);
+			candidate.detourTimeSeconds = timeWithInsertion - baseTime;
 			if (candidate.detourTimeSeconds < 0) candidate.detourTimeSeconds = 0;
 		}
 	}
@@ -417,31 +276,8 @@ public class VariableWaypointResolver {
 		allPoints.add(end);
 
 		double totalTime = 0;
-		for (int i = 0; i < allPoints.size() - 1; i++) {
-			Location startLoc = new Location("estimate");
-			startLoc.setLatitude(allPoints.get(i).getLatitude());
-			startLoc.setLongitude(allPoints.get(i).getLongitude());
-
-			RouteCalculationParams params = new RouteCalculationParams();
-			params.start = startLoc;
-			params.end = allPoints.get(i + 1);
-			params.intermediates = new ArrayList<>();
-			params.ctx = app;
-			params.mode = mode;
-			params.fast = true;
-			params.calculationProgress = new RouteCalculationProgress();
-
-			try {
-				RouteCalculationResult result = provider.calculateRouteImpl(params);
-				if (result != null && result.isCalculated()) {
-					totalTime += result.getRoutingTime();
-				} else {
-					totalTime += straightLineTime(allPoints.get(i), allPoints.get(i + 1), mode);
-				}
-			} catch (Exception e) {
-				totalTime += straightLineTime(allPoints.get(i), allPoints.get(i + 1), mode);
-			}
-		}
+		for (int i = 0; i < allPoints.size() - 1; i++)
+                  totalTime += straightLineTime(allPoints.get(i), allPoints.get(i + 1), mode);
 		return totalTime;
 	}
 
